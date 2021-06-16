@@ -169,7 +169,7 @@ tsummary[is.na(tsummary)] <- ""
 write.csv(tsummary, paste0("Summary_Statistics_" , MapToAsses ,".csv"),  row.names = FALSE)
 
 ######################### Calculate proportions of area, accuracies, cells, and standard errors based on "tsummary" ##############################################
-###################################################### Equations pag 4932-4936####################################################################################
+###################################################### Equations pag 4932-4936 ###################################################################################
 #Make sure the columns needed are numeric
 tsummary[,3:ncol(tsummary)] <- lapply(tsummary[,3:ncol(tsummary)], as.numeric)
 
