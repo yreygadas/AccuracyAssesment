@@ -1,0 +1,267 @@
+#############################################################################################################################################################
+#CALCULATES CELLS OF THE ERROR MATRICES, ACCURACIES, PROPORTION OF AREA, AND STANDARD ERRORS (BINARY CLASSIFICATION AND SAMPLING DESING COMPRISED OF FOUR STRATA)
+# Reference: Stehman, S. V., 2014. Estimating area and map accuracy for stratified random sampling when the strataare different from the map classes. 
+#Int. J. Remote Sens. 35, 4923-4939.https://doi.org/10.1080/01431161.2014.930207
+#############################################################################################################################################################
+
+###################################################SET UP BEFORE RUNNING THE SCRIPT##########################################################################
+#Add required package
+require(plyr)
+
+#Define the dataset that contains the data
+dataset<-"SamplingPointsMASTER.csv"
+
+#Define the map to assess (CODED, LT, or ML)
+MapToAsses <- "ML"
+
+#Define the column that has the final reference labels
+RefLabels<- "RefClass_final"
+
+#Define stratum sizes (number of pixels) 
+N1<-11374840
+N2<-9737618
+N3<-14809635
+N4<-251528204
+N<- 287450297
+
+#Define the number of samples per stratum
+alls1<-69
+alls2<-72
+alls3<-74
+alls4<-578
+
+#Set up the working directory 
+dir.orig <- "D:/Yunuen/6PostDoc/Validation/SecondVersion/AccuracyResults"
+
+##########################################################THE SCRIPT STARTS HERE#############################################################################
+##################################### Calculate summary statistics required for computing estimates #########################################################
+#Set the original working directory
+setwd(dir.orig)
+
+#Bring the dataset into R, and call it "table1"
+table1 <- read.table(dataset, header = TRUE, sep = ",")
+
+#Extract only the columns needed
+table2<- table1[c("Strata",MapToAsses,RefLabels)] 
+
+#Change the column names
+colnames(table2) <- c("Strata", "MapClass","RefClass")
+
+#Add columns to calculate PROPORTION OF AREA of classes "Disturbed" and "Undisturbed". 
+#Equation 14, if pixel u is reference class k =1, if pixel u is not reference class k =0
+# Class Disturbed
+table2$AreaDist[table2$RefClass==1]<-1
+table2$AreaDist[table2$RefClass==0]<-0
+# Class Undisturbed
+table2$AreaUndist[table2$RefClass==0]<-1
+table2$AreaUndist[table2$RefClass==1]<-0
+
+#Add column to calculate  OVERALL accuracy
+#Equation 12, if pixel u is classified correctly =1, if pixel u is classified incorrectly =0
+table2$Overrall[table2$MapClass==table2$RefClass]<-1
+table2$Overrall[table2$MapClass!=table2$RefClass]<-0
+
+#Add columns to calculate  USER's accuracy 
+#class "Disturbed"
+#"y" equation 18, if pixel u is classified correctly and has map class k =1, otherwise =0
+table2$UsersDist_y<- ifelse(table2$MapClass==table2$RefClass & table2$MapClass==1, 1,0)
+#"x" equation 19, if pixel u is map class k =1, otherwise =0
+table2$UsersDist_x<- ifelse(table2$MapClass==1, 1,0)
+#class "Undisturbed"
+#"y" equation 18, if pixel u is classified correctly and has map class k =1, otherwise =0
+table2$UsersUndist_y<- ifelse(table2$MapClass==table2$RefClass & table2$MapClass==0, 1,0)
+#"x" equation 19, if pixel u is map class k =1, otherwise =0
+table2$UsersUndist_x<- ifelse(table2$MapClass==0, 1,0)
+
+#Add columns to calculate  PRODUCER's accuracy 
+#class "Disturbed"
+#"y" equation 22, if pixel u is classified correctly and has reference class k =1, otherwise =0
+table2$ProducersDist_y<- ifelse(table2$MapClass==table2$RefClass & table2$RefClass==1, 1,0)
+#"x" equation 23, if pixel u is reference class k =1, otherwise =0
+table2$ProducersDist_x<- ifelse(table2$RefClass==1, 1,0)
+#class "Undisturbed"
+#"y" equation 22, if pixel u is classified correctly and has reference class k =1, otherwise =0
+table2$ProducersUndist_y<- ifelse(table2$MapClass==table2$RefClass & table2$RefClass==0, 1,0)
+#"x" equation 23, if pixel u is reference class k =1, otherwise =0
+table2$ProducersUndist_x<- ifelse(table2$RefClass==0, 1,0)
+
+#Add column to calculate P = the proportion of area in rows (map class) and columns (reference class) of the error matrix estimated from the sample
+#Equation 16, if pixel u is map class i and reference class j =1, otherwise=0
+#P11
+table2$P11<- ifelse(table2$MapClass==1 & table2$RefClass==1, 1,0)
+#P12
+table2$P12<- ifelse(table2$MapClass==1 & table2$RefClass==0, 1,0)
+#P21
+table2$P21<- ifelse(table2$MapClass==0 & table2$RefClass==1, 1,0)
+#P22
+table2$P22<- ifelse(table2$MapClass==0 & table2$RefClass==0, 1,0)
+
+# Create SUMMARY of statistics required for computing estimates of proportion of area and accuracy
+#Order the rows by Strata
+table2 <- table2[with(table2, order(Strata)),]
+
+#Create fake values rather than NA values
+#table2[is.na(table2)] <- 0
+
+#Subset the 4 tables based on the Strata
+table2.s1 <- table2[which(table2$Strata ==1), 7:14]
+table2.s2 <- table2[which(table2$Strata ==2), 7:14]
+table2.s3 <- table2[which(table2$Strata ==3), 7:14]
+table2.s4 <- table2[which(table2$Strata ==4), 7:14]
+
+#Calculate the covariance
+ud.s1 <- cov(table2.s1$UsersDist_y, table2.s1$UsersDist_x)
+uu.s1 <-cov(table2.s1$UsersUndist_y, table2.s1$UsersUndist_x)
+pd.s1 <- cov(table2.s1$ProducersDist_y, table2.s1$ProducersDist_x)
+pu.s1 <- cov(table2.s1$ProducersUndist_y, table2.s1$ProducersUndist_x)
+
+ud.s2 <- cov(table2.s2$UsersDist_y, table2.s2$UsersDist_x)
+uu.s2 <-cov(table2.s2$UsersUndist_y, table2.s2$UsersUndist_x)
+pd.s2 <- cov(table2.s2$ProducersDist_y, table2.s2$ProducersDist_x)
+pu.s2 <- cov(table2.s2$ProducersUndist_y, table2.s2$ProducersUndist_x)
+
+ud.s3 <- cov(table2.s3$UsersDist_y, table2.s3$UsersDist_x)
+uu.s3 <-cov(table2.s3$UsersUndist_y, table2.s3$UsersUndist_x)
+pd.s3 <- cov(table2.s3$ProducersDist_y, table2.s3$ProducersDist_x)
+pu.s3 <- cov(table2.s3$ProducersUndist_y, table2.s3$ProducersUndist_x)
+                        
+ud.s4 <- cov(table2.s4$UsersDist_y, table2.s4$UsersDist_x)
+uu.s4 <-cov(table2.s4$UsersUndist_y, table2.s4$UsersUndist_x)
+pd.s4 <- cov(table2.s4$ProducersDist_y, table2.s4$ProducersDist_x)
+pu.s4 <- cov(table2.s4$ProducersUndist_y, table2.s4$ProducersUndist_x)
+
+#Create a table with all the results
+sCov <-  data.frame(c(1:4), c(ud.s1, ud.s2, ud.s3, ud.s4), c(uu.s1, uu.s2, uu.s3, uu.s4), c(pd.s1, pd.s2, pd.s3, pd.s4), c(pu.s1, pu.s2, pu.s3, pu.s4))
+
+#Change column names
+colnames(sCov) <- c("Strata", "UsersDist_y", "UsersUndist_y", "ProducersDist_y", "ProducersUndist_y")
+
+#Aggregate table 2 by strata (both mean and variance)
+sMean<- aggregate(. ~ Strata, data = table2, FUN = mean)
+sVar<- aggregate(. ~ Strata, data = table2, FUN = var)
+
+#Add a column with the name of the function
+sMean$Var <- "1_Mean"
+sVar$Var <- "2_Variance"
+sCov$Var <- "3_Covariance"
+
+#Put the three tables together
+tsummary <- rbind.fill(sMean, sVar, sCov)
+
+#Change the order of the columns
+tsummary <- tsummary[, c(1, ncol(tsummary), 2:(ncol(tsummary)-1))]
+
+#Delete some columns
+tsummary$MapClass <- NULL
+tsummary$RefClass <- NULL
+
+#Delete the variance for the P-columns
+tsummary[which(tsummary$Var == "2_Variance"), c("P11", "P12", "P21", "P22")] <- NA
+
+#Order the rows
+tsummary <- tsummary[with(tsummary, order(Strata, Var)),]
+
+#Convert NA to empty spaces
+tsummary[is.na(tsummary)] <- ""
+
+#Export the summary table
+write.csv(tsummary, paste0("Summary_Statistics_" , MapToAsses ,".csv"),  row.names = FALSE)
+
+######################### Calculate proportions of area, accuracies, cells, and standard errors based on "tsummary" ##############################################
+###################################################### Equations pag 4932-4936####################################################################################
+#Make sure the columns needed are numeric
+tsummary[,3:ncol(tsummary)] <- lapply(tsummary[,3:ncol(tsummary)], as.numeric)
+
+#Proportion of AREA 
+#Disturbed
+pAreaDist<-((N1*tsummary[1,3])+(N2*tsummary[4,3])+(N3*tsummary[7,3])+(N4*tsummary[10,3]))/N
+#Undisturbed
+pAreaUndist<-((N1*tsummary[1,4])+(N2*tsummary[4,4])+(N3*tsummary[7,4])+(N4*tsummary[10,4]))/N
+
+#OVERALL accuracy
+overall<-((N1*tsummary[1,5])+(N2*tsummary[4,5])+(N3*tsummary[7,5])+(N4*tsummary[10,5]))/N
+
+#USER'S accuracy
+#Disturbed
+Xdist_u<-((N1*tsummary[1,7])+(N2*tsummary[4,7])+(N3*tsummary[7,7])+(N4*tsummary[10,7]))
+UsersDist<-((N1*tsummary[1,6])+(N2*tsummary[4,6])+(N3*tsummary[7,6])+(N4*tsummary[10,6]))/Xdist_u
+#Undisturbed 
+Xundist_u<-((N1*tsummary[1,9])+(N2*tsummary[4,9])+(N3*tsummary[7,9])+(N4*tsummary[10,9]))
+UsersUndist<-((N1*tsummary[1,8])+(N2*tsummary[4,8])+(N3*tsummary[7,8])+(N4*tsummary[10,8]))/Xundist_u
+
+#PRODUCER'S accuracy
+#Disturbed
+Xdist_p<-((N1*tsummary[1,11])+(N2*tsummary[4,11])+(N3*tsummary[7,11])+(N4*tsummary[10,11]))
+ProducersDist<-((N1*tsummary[1,10])+(N2*tsummary[4,10])+(N3*tsummary[7,10])+(N4*tsummary[10,10]))/Xdist_p
+#Undisturbed
+Xundist_p<-((N1*tsummary[1,13])+(N2*tsummary[4,13])+(N3*tsummary[7,13])+(N4*tsummary[10,13]))
+ProducersUndist<-((N1*tsummary[1,12])+(N2*tsummary[4,12])+(N3*tsummary[7,12])+(N4*tsummary[10,12]))/Xundist_p
+
+#CELLS of the error matrix 
+p11<-((N1*tsummary[1,14])+(N2*tsummary[4,14])+(N3*tsummary[7,14])+(N4*tsummary[10,14]))/N
+p12<-((N1*tsummary[1,15])+(N2*tsummary[4,15])+(N3*tsummary[7,15])+(N4*tsummary[10,15]))/N
+p21<-((N1*tsummary[1,16])+(N2*tsummary[4,16])+(N3*tsummary[7,16])+(N4*tsummary[10,16]))/N
+p22<-((N1*tsummary[1,17])+(N2*tsummary[4,17])+(N3*tsummary[7,17])+(N4*tsummary[10,17]))/N
+
+#STANDARD errors
+#SE for proportion of area 
+#Disturbed
+sEpAreaDist<- sqrt((1/(N^2))*(((N1^2)*(tsummary[2,3]/alls1))+
+                              ((N2^2)*(tsummary[5,3]/alls2))+
+                              ((N3^2)*(tsummary[8,3]/alls3))+
+                              ((N4^2)*(tsummary[11,3]/alls4))))
+#Undisturbed
+sEpAreaUndist<- sqrt((1/(N^2))*(((N1^2)*(tsummary[2,4]/alls1))+
+                                ((N2^2)*(tsummary[5,4]/alls2))+
+                                ((N3^2)*(tsummary[8,4]/alls3))+
+                                ((N4^2)*(tsummary[11,4]/alls4))))
+
+#SE for overall accuracy
+sEoverall<- sqrt((1/(N^2))*(((N1^2)*(tsummary[2,5]/alls1))+((N2^2)*(tsummary[5,5]/alls2))+
+                            ((N3^2)*(tsummary[8,5]/alls3))+((N4^2)*(tsummary[11,5]/alls4))))
+
+#SE for USER's accuracy
+#Disturbed
+sEusersDist<- sqrt((1/(Xdist_u^2))*(N1^2*(tsummary[2,6]+UsersDist^2*tsummary[2,7]-2*UsersDist*tsummary[3,6])/alls1+
+                                    N2^2*(tsummary[5,6]+UsersDist^2*tsummary[5,7]-2*UsersDist*tsummary[6,6])/alls2+
+                                    N3^2*(tsummary[8,6]+UsersDist^2*tsummary[8,7]-2*UsersDist*tsummary[9,6])/alls3+ 
+                                    N4^2*(tsummary[11,6]+UsersDist^2*tsummary[11,7]-2*UsersDist*tsummary[12,6])/alls4))
+#Undisturbed
+sEusersUndist<- sqrt((1/(Xundist_u^2))*(N1^2*(tsummary[2,8]+UsersUndist^2*tsummary[2,9]-2*UsersUndist*tsummary[3,8])/alls1+
+                                        N2^2*(tsummary[5,8]+UsersUndist^2*tsummary[5,9]-2*UsersUndist*tsummary[6,8])/alls2+
+                                        N3^2*(tsummary[8,8]+UsersUndist^2*tsummary[8,9]-2*UsersUndist*tsummary[9,8])/alls3+ 
+                                        N4^2*(tsummary[11,8]+UsersUndist^2*tsummary[11,9]-2*UsersUndist*tsummary[12,8])/alls4))
+
+#SE for PRODUCER'S accuracy
+#Disturbed
+sEproducersDist<- sqrt((1/(Xdist_p^2))*(N1^2*(tsummary[2,10]+ProducersDist^2*tsummary[2,11]-2*ProducersDist*tsummary[3,10])/alls1+
+                                        N2^2*(tsummary[5,10]+ProducersDist^2*tsummary[5,11]-2*ProducersDist*tsummary[6,10])/alls2+
+                                        N3^2*(tsummary[8,10]+ProducersDist^2*tsummary[8,11]-2*ProducersDist*tsummary[9,10])/alls3+ 
+                                        N4^2*(tsummary[11,10]+ProducersDist^2*tsummary[11,11]-2*ProducersDist*tsummary[12,10])/alls4))
+#Undisturbed
+sEproducersUndist<- sqrt((1/(Xundist_p^2))*(N1^2*(tsummary[2,12]+ProducersUndist^2*tsummary[2,13]-2*ProducersUndist*tsummary[3,12])/alls1+
+                                            N2^2*(tsummary[5,12]+ProducersUndist^2*tsummary[5,13]-2*ProducersUndist*tsummary[6,12])/alls2+
+                                            N3^2*(tsummary[8,12]+ProducersUndist^2*tsummary[8,13]-2*ProducersUndist*tsummary[9,12])/alls3+ 
+                                            N4^2*(tsummary[11,12]+ProducersUndist^2*tsummary[11,13]-2*ProducersUndist*tsummary[12,12])/alls4))
+
+################################################ Create the final table #####################################################################
+# Create a confusion matrix with all cells
+matrix<- data.frame(c("Disturbed", "Undisturbed","Producer's Accuracy", "SE Producer´s Accuracy", "Overall Accuracy", "SE Overall Accuracy", "Proportion of Area","SE Proportion of Area"),
+                    c(p11,p21,ProducersDist,sEproducersDist, overall, sEoverall,pAreaDist,sEpAreaDist), 
+                    c(p12,p22,ProducersUndist,sEproducersUndist," "," ",pAreaUndist,sEpAreaUndist),
+                    c(UsersDist,UsersUndist," "," "," "," "," "," "),
+                    c(sEusersDist,sEusersUndist," "," "," "," "," "," ")) 
+
+colnames(matrix) <- c("Classes and estimations","Disturbed", "Undisturbed","User's accuracy", "SE User's Accuracy") 
+#rownames(matrix) <- c("Disturbed", "Undisturbed","User's Accuracy", "SE User's Accuracy", "Producer's Accuracy", "SE Producer´s Accuracy", "Overall Accuracy", "SE Overall Accuracy", "Proportion of Area","SE Proportion of Area")
+
+
+#Export the  table
+write.csv(matrix, paste0("AccuracyResults_" , MapToAsses ,".csv"),  row.names = FALSE)
+
+#End
+
+
+
+
+
