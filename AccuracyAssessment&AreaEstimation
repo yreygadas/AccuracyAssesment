@@ -3,6 +3,7 @@
 # the strata (four strata) of the stratified random sampling are different from the map classes (two clases)
 # Reference: Stehman, S. V., 2014. Estimating area and map accuracy for stratified random sampling when the strata are different from the map classes. 
 # Int. J. Remote Sens. 35, 4923-4939.https://doi.org/10.1080/01431161.2014.930207
+# Code writen by Y. Reygadas
 #############################################################################################################################################################
 
 ###################################################SET UP BEFORE RUNNING THE SCRIPT##########################################################################
